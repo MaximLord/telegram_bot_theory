@@ -11,6 +11,7 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
+import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,12 +35,16 @@ public class TelegramBot extends TelegramLongPollingBot {
         if (update.hasMessage() && update.getMessage().hasText()) {
             String messageText = update.getMessage().getText();
             long chatId = update.getMessage().getChatId();
-
-            if (messageText.equals("/start")){
-                startCommandReceived(chatId, update.getMessage().getChat().getFirstName());
+            switch (messageText) {
+                case "/start":
+                    startCommandReceived(chatId, update.getMessage().getChat().getFirstName());
+                    break;
+                default:
+                    sendMessage(chatId, "Sorry, command was not recognized");
             }
         }
     }
+
 
     @Override
     public String getBotUsername() {
@@ -60,33 +65,21 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     }
 
+    // Метод для отправки сообщений
     private void sendMessage(Long chatId, String textToSend) {
         SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
         message.setText(textToSend);
 
-        // Клавиатура (меню)
-        ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
-        List<KeyboardRow> keyboardRows = new ArrayList<>();
+        try {
+            execute(message);
+        } catch (TelegramApiException e) {
 
-        KeyboardRow row = new KeyboardRow();
-        row.add("/weather");
-        row.add("/get random joke");
-        keyboardRows.add(row);
-
-        row = new KeyboardRow();
-        row.add("/register");
-        row.add("/check my data");
-        row.add("/delete my data");
-        keyboardRows.add(row);
-
-        keyboardMarkup.setKeyboard(keyboardRows);
-
-        message.setReplyMarkup(keyboardMarkup);
-
+        }
     }
-
 }
+
+
 
 
 
