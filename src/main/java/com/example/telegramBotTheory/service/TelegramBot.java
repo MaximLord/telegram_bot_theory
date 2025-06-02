@@ -1,7 +1,9 @@
 package com.example.telegramBotTheory.service;
 
 import com.example.telegramBotTheory.entity.BotConfig;
+import com.example.telegramBotTheory.entity.Task;
 import com.example.telegramBotTheory.repository.TaskRepository;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.http.HttpMessageConverters;
@@ -16,8 +18,11 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
+import java.time.LocalDate;
+import java.time.Period;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Component
@@ -33,30 +38,45 @@ public class TelegramBot extends TelegramLongPollingBot {
         this.config = config;
     }
 
+    @SneakyThrows
     @Override
     public void onUpdateReceived(Update update) {
 
         if (update.hasMessage() && update.getMessage().hasText()) {
             String messageText = update.getMessage().getText();
             long chatId = update.getMessage().getChatId();
-            switch (messageText) {
-                case "/start":
-                    // startCommandReceived(chatId, update.getMessage().getChat().getFirstName());
-                    sendMessage(chatId, "Привет, " + update.getMessage().getChat().getFirstName() + "!");
 
-                    SendMessage messageWithKeyboard = keyboard(chatId, "Выберите режим:");
-                    try {
-                        execute(messageWithKeyboard);
-                    } catch (TelegramApiException e) {
-                        e.printStackTrace();
-                    }
+            if (messageText.equals("/start")) {
+                sendMessage(chatId, "Привет, " + update.getMessage().getChat().getFirstName() + "!");
+                SendMessage messageWithKeyboard = keyboard(chatId, "Выберите режим: ");
+                try {
+                    execute(messageWithKeyboard); // Отправка клавиатуры
+                } catch (TelegramApiException e) {
+                    e.printStackTrace();
+                }
+                return;
+
+            } else {
+                sendMessage(chatId, "Бро, я не знаю такую команду ");
+            }
+        }
+
+        // Обработка кнопок
+        if (update.hasCallbackQuery()) {
+            String callbackData = update.getCallbackQuery().getData();
+            Long chatId = update.getCallbackQuery().getMessage().getChatId();
+            switch (callbackData) {
+                case "Теория":
+                    //sendMessageTheory(chatId);
+                    break;
+                case "Практика":
+                    sendMessagePractice(chatId);
                     break;
                 default:
                     sendMessage(chatId, "Бро, я не знаю такую команду ");
             }
         }
     }
-
 
     @Override
     public String getBotUsername() {
@@ -68,7 +88,7 @@ public class TelegramBot extends TelegramLongPollingBot {
         return config.getToken();
     }
 
-    //Метод для команды /start
+//Метод для команды /start
 //    private void startCommandReceived(Long chatId, String name) {
 //        String answer = "Привет " + name + "!";
 //        log.info("Replied to user " + name);
@@ -116,6 +136,23 @@ public class TelegramBot extends TelegramLongPollingBot {
         message.setReplyMarkup(inlineKeyboard);
 
         return message;
+    }
+
+    // Кнопка "Теория"
+    private void sendMessageTheory(long chatId, Task task) {
+
+    }
+
+    private void addTheory(long chatId, Task task) {
+        Optional<Task> optionalTask = taskRepository.findByQuestion(task.getQuestion());
+        if (optionalTask.isPresent()) {
+            throw new IllegalStateException("Задача с таким вопросом уже существует!");
+        }
+        //return taskRepository.save(chatId, task);
+    }
+
+    // Кнопка "Практика"
+    private void sendMessagePractice(long chatId) {
     }
 }
 
