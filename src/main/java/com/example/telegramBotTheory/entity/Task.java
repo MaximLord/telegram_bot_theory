@@ -1,9 +1,6 @@
 package com.example.telegramBotTheory.entity;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 import lombok.*;
 
 @AllArgsConstructor
@@ -18,7 +15,10 @@ public class Task {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
+    @Column(name = "topic")
     private String topic;       // Тема
+    @Column(name = "question")
     private String question;    // Вопрос
+    @Column(name = "answer")
     private String answer;      // Ответ
 }

@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.TelegramBotsApi;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
@@ -20,16 +21,20 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.time.LocalDate;
 import java.time.Period;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 @Slf4j
 @Component
 public class TelegramBot extends TelegramLongPollingBot {
 
     final BotConfig config;
-    InlineKeyboardMarkup inlineKeyboard = new InlineKeyboardMarkup(); // Клавиатура
+
+    // мапа (хранение) для отслеживания состояния пользователя
+    private final Map<Long, String> userStates = new HashMap<>();
+    private final Map<Long, Task> draftTheories = new HashMap<>();
+
+    // Клавиатура
+    InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
 
     @Autowired
     private TaskRepository taskRepository;
@@ -41,11 +46,10 @@ public class TelegramBot extends TelegramLongPollingBot {
     @SneakyThrows
     @Override
     public void onUpdateReceived(Update update) {
+        String messageText = update.getMessage().getText();
+        Long chatId = update.getCallbackQuery().getMessage().getChatId();
 
         if (update.hasMessage() && update.getMessage().hasText()) {
-            String messageText = update.getMessage().getText();
-            long chatId = update.getMessage().getChatId();
-
             if (messageText.equals("/start")) {
                 sendMessage(chatId, "Привет, " + update.getMessage().getChat().getFirstName() + "!");
                 SendMessage messageWithKeyboard = keyboard(chatId, "Выберите режим: ");
@@ -55,7 +59,6 @@ public class TelegramBot extends TelegramLongPollingBot {
                     e.printStackTrace();
                 }
                 return;
-
             } else {
                 sendMessage(chatId, "Бро, я не знаю такую команду ");
             }
@@ -64,7 +67,6 @@ public class TelegramBot extends TelegramLongPollingBot {
         // Обработка кнопок
         if (update.hasCallbackQuery()) {
             String callbackData = update.getCallbackQuery().getData();
-            Long chatId = update.getCallbackQuery().getMessage().getChatId();
             switch (callbackData) {
                 case "Теория":
                     //sendMessageTheory(chatId);
@@ -74,6 +76,47 @@ public class TelegramBot extends TelegramLongPollingBot {
                     break;
                 default:
                     sendMessage(chatId, "Бро, я не знаю такую команду ");
+            }
+
+            if (userStates.containsKey(chatId)) {
+                String state = userStates.get(chatId);
+                Task draft = draftTheories.getOrDefault(chatId, new Task());
+
+                switch (state) {
+                    case "AWAITING_TOPIC":
+                        draft.setTopic(messageText);
+                        userStates.put(chatId, "AWAITING_QUESTION");
+                        draftTheories.put(chatId, draft);
+                        sendMessage(chatId, "Теперь введите вопрос: ");
+                        break;
+
+                    case "AWAITING_QUESTION":
+                        draft.setQuestion(messageText);
+                        userStates.put(chatId, "AWAITING_ANSWER");
+                        draftTheories.put(chatId, draft);
+                        sendMessage(chatId, "Теперь введите ответ: ");
+                        break;
+
+                    case "AWAITING_ANSWER":
+                        draft.setAnswer(messageText);
+                        taskRepository.save(draft);
+                        userStates.remove(chatId);
+                        draftTheories.remove(chatId);
+                        sendMessage(chatId, "Теория успешно добавлена! ");
+                        break;
+                }
+                return;
+            }
+        }
+
+        if (update.hasCallbackQuery()) {
+            String callbackData = update.getCallbackQuery().getData();
+
+            if (callbackData.startsWith("topic_")) {
+                String topic = callbackData.replace("topic_", "");
+                sendTopicContent(chatId, topic);
+            } else if (callbackData.equals("add_theory")) {
+                startAddTheoryFlow(chatId);
             }
         }
     }
@@ -87,15 +130,6 @@ public class TelegramBot extends TelegramLongPollingBot {
     public String getBotToken() {
         return config.getToken();
     }
-
-//Метод для команды /start
-//    private void startCommandReceived(Long chatId, String name) {
-//        String answer = "Привет " + name + "!";
-//        log.info("Replied to user " + name);
-//
-//        sendMessage(chatId, answer);
-//
-//    }
 
     // Метод для отправки сообщений
     private void sendMessage(Long chatId, String textToSend) {
@@ -138,17 +172,72 @@ public class TelegramBot extends TelegramLongPollingBot {
         return message;
     }
 
-    // Кнопка "Теория"
-    private void sendMessageTheory(long chatId, Task task) {
+    // Кнопка "Теория", выводит список тем
+    private void sendMessageTheory(long chatId) {
+        List<String> topics = taskRepository.findUniqueTopics();
+
+        SendMessage message = new SendMessage();
+        message.setChatId(chatId);
+        message.setText(topics.isEmpty() ? "Теорий пока нет " : "Выберите тему: ");
+
+        InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+
+        // Вывод существующих тем
+        for (String topic : topics) {
+            InlineKeyboardButton button = new InlineKeyboardButton();
+            button.setText(topic);
+            button.setCallbackData("topic_" + topic);
+            rows.add(Collections.singletonList(button));
+        }
+
+        // Кнопка добавление новой теории
+        InlineKeyboardButton addButton = new InlineKeyboardButton();
+        addButton.setText("Добавить теорию ");
+        addButton.setCallbackData("add_theory");
+        rows.add(Collections.singletonList(addButton));
+
+        markup.setKeyboard(rows);
+        message.setReplyMarkup(markup);
+
+        executeMessage(message);
+    }
+
+    private void executeMessage(SendMessage message) {
 
     }
 
-    private void addTheory(long chatId, Task task) {
-        Optional<Task> optionalTask = taskRepository.findByQuestion(task.getQuestion());
-        if (optionalTask.isPresent()) {
-            throw new IllegalStateException("Задача с таким вопросом уже существует!");
+    // Отправить содержание темы
+    private void sendTopicContent(Long chatId, String topic) {
+        List<Task> tasks = taskRepository.findByTopic(topic);
+
+        StringBuilder response = new StringBuilder();
+        response.append("Тема: ").append(topic).append("\n\n");
+
+        for (Task task : tasks) {
+            response.append("Вопрос: ").append(task.getQuestion())
+                    .append("\n Ответ: ").append(task.getAnswer())
+                    .append("\n\n");
         }
-        //return taskRepository.save(chatId, task);
+        sendMessage(chatId, response.toString());
+    }
+
+    // Процесс добавления
+    private void startAddTheoryFlow(Long chatId) {
+        InlineKeyboardButton cancelButton = new InlineKeyboardButton();
+        userStates.put(chatId, "AWAITING_TOPIC");
+        sendMessage(chatId, "Введите название темы:");
+
+        // Кнопка отмены
+
+        cancelButton.setText("Отмена ");
+        cancelButton.setCallbackData("cancel_add");
+        markup.setKeyboard(List.of(List.of(cancelButton)));
+
+        SendMessage message = new SendMessage();
+        message.setChatId(chatId);
+        message.setText("Введите название темы");
+        message.setReplyMarkup(markup);
     }
 
     // Кнопка "Практика"
