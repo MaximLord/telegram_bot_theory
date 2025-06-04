@@ -13,5 +13,14 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
 
     List<Task> findByTopic(String topic);
 
+//    @Query("SELECT DISTINCT t.topic FROM Task t")
+//    List<String> findUniqueTopics();
+//
+//    @Query(value = "SELECT t from Task t WHERE t.topic = :topic")
+//    List<Task> findByTopic(String topic);
+
+
+//    @Query(value = "SELECT t from Task t WHERE t.question = :question")
+//    Optional<Task> findByQuestion(String question);
 
 }

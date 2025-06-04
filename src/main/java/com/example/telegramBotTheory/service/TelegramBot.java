@@ -243,6 +243,7 @@ public class TelegramBot extends TelegramLongPollingBot {
     // Кнопка "Практика"
     private void sendMessagePractice(long chatId) {
     }
+
 }
 
 

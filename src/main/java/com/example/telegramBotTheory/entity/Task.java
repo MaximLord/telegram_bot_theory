@@ -21,4 +21,5 @@ public class Task {
     private String question;    // Вопрос
     @Column(name = "answer")
     private String answer;      // Ответ
+
 }
