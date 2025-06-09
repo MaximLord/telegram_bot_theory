@@ -47,37 +47,10 @@ public class TelegramBot extends TelegramLongPollingBot {
     @Override
     public void onUpdateReceived(Update update) {
         String messageText = update.getMessage().getText();
-        Long chatId = update.getCallbackQuery().getMessage().getChatId();
+        Long chatId = update.getMessage().getChatId();
 
+        // Обработка текстовых сообщений
         if (update.hasMessage() && update.getMessage().hasText()) {
-            if (messageText.equals("/start")) {
-                sendMessage(chatId, "Привет, " + update.getMessage().getChat().getFirstName() + "!");
-                SendMessage messageWithKeyboard = keyboard(chatId, "Выберите режим: ");
-                try {
-                    execute(messageWithKeyboard); // Отправка клавиатуры
-                } catch (TelegramApiException e) {
-                    e.printStackTrace();
-                }
-                return;
-            } else {
-                sendMessage(chatId, "Бро, я не знаю такую команду ");
-            }
-        }
-
-        // Обработка кнопок
-        if (update.hasCallbackQuery()) {
-            String callbackData = update.getCallbackQuery().getData();
-            switch (callbackData) {
-                case "Теория":
-                    //sendMessageTheory(chatId);
-                    break;
-                case "Практика":
-                    sendMessagePractice(chatId);
-                    break;
-                default:
-                    sendMessage(chatId, "Бро, я не знаю такую команду ");
-            }
-
             if (userStates.containsKey(chatId)) {
                 String state = userStates.get(chatId);
                 Task draft = draftTheories.getOrDefault(chatId, new Task());
@@ -107,17 +80,46 @@ public class TelegramBot extends TelegramLongPollingBot {
                 }
                 return;
             }
-        }
 
+            if (messageText.equals("/start")) {
+                sendMessage(chatId, "Привет, " + update.getMessage().getChat().getFirstName() + "!");
+                SendMessage messageWithKeyboard = keyboard(chatId, "Выберите режим: ");
+                try {
+                    execute(messageWithKeyboard); // Отправка клавиатуры
+                } catch (TelegramApiException e) {
+                    e.printStackTrace();
+                }
+                return;
+            } else {
+                sendMessage(chatId, "Бро, я не знаю такую команду ");
+                return;
+            }
+        }
+        // Обработка кнопок (CallBack-ов)
         if (update.hasCallbackQuery()) {
             String callbackData = update.getCallbackQuery().getData();
+            //long chatId = update.getCallbackQuery().getMessage().getChatId();
+            switch (callbackData) {
+                case "Теория":
+                    sendMessageTheory(chatId);
+                    break;
+                case "Практика":
+                    sendMessagePractice(chatId);
+                    break;
+                case "add_theory":
+                    startAddTheoryFlow(chatId);
+                    break;
+                default:
+                    if (callbackData.startsWith("topic_")) {
+                        String topic = callbackData.replace("topic_", "");
+                        sendTopicContent(chatId, topic);
+                    } else {
+                        sendMessage(chatId, "Бро, я не знаю такую команду ");
+                    }
+                    break;
 
-            if (callbackData.startsWith("topic_")) {
-                String topic = callbackData.replace("topic_", "");
-                sendTopicContent(chatId, topic);
-            } else if (callbackData.equals("add_theory")) {
-                startAddTheoryFlow(chatId);
             }
+
         }
     }
 

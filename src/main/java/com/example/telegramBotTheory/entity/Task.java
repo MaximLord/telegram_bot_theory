@@ -9,7 +9,8 @@ import lombok.*;
 @Setter
 @ToString
 
-@Entity(name = "task")
+@Entity
+@Table (name = "task")
 // Задача
 public class Task {
     @Id
