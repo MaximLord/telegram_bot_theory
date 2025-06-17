@@ -46,11 +46,11 @@ public class TelegramBot extends TelegramLongPollingBot {
     @SneakyThrows
     @Override
     public void onUpdateReceived(Update update) {
-        String messageText = update.getMessage().getText();
-        Long chatId = update.getMessage().getChatId();
-
         // Обработка текстовых сообщений
         if (update.hasMessage() && update.getMessage().hasText()) {
+            String messageText = update.getMessage().getText();
+            Long chatId = update.getMessage().getChatId();
+
             if (userStates.containsKey(chatId)) {
                 String state = userStates.get(chatId);
                 Task draft = draftTheories.getOrDefault(chatId, new Task());
@@ -96,14 +96,15 @@ public class TelegramBot extends TelegramLongPollingBot {
             }
         }
         // Обработка кнопок (CallBack-ов)
-        if (update.hasCallbackQuery()) {
+        else if (update.hasCallbackQuery()) {
             String callbackData = update.getCallbackQuery().getData();
-            //long chatId = update.getCallbackQuery().getMessage().getChatId();
+            Long chatId = update.getCallbackQuery().getMessage().getChatId(); // Получаем chatId из CallbackQuery
+
             switch (callbackData) {
-                case "Теория":
+                case "callback_data_for_button_1": // Проверяем callbackData, которую установили для кнопки "Теория"
                     sendMessageTheory(chatId);
                     break;
-                case "Практика":
+                case "callback_data_for_button_2": // Проверяем callbackData, которую установили для кнопки "Практика"
                     sendMessagePractice(chatId);
                     break;
                 case "add_theory":
@@ -117,9 +118,7 @@ public class TelegramBot extends TelegramLongPollingBot {
                         sendMessage(chatId, "Бро, я не знаю такую команду ");
                     }
                     break;
-
             }
-
         }
     }
 
@@ -202,11 +201,19 @@ public class TelegramBot extends TelegramLongPollingBot {
         markup.setKeyboard(rows);
         message.setReplyMarkup(markup);
 
-        executeMessage(message);
+        try {
+            execute(message);
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
+        }
     }
 
     private void executeMessage(SendMessage message) {
-
+        try {
+            execute(message);
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
+        }
     }
 
     // Отправить содержание темы
@@ -217,34 +224,33 @@ public class TelegramBot extends TelegramLongPollingBot {
         response.append("Тема: ").append(topic).append("\n\n");
 
         for (Task task : tasks) {
-            response.append("Вопрос: ").append(task.getQuestion())
-                    .append("\n Ответ: ").append(task.getAnswer())
-                    .append("\n\n");
+            response.append("Вопрос: ").append(task.getQuestion()).append("\n Ответ: ").append(task.getAnswer()).append("\n\n");
         }
         sendMessage(chatId, response.toString());
     }
 
     // Процесс добавления
     private void startAddTheoryFlow(Long chatId) {
-        InlineKeyboardButton cancelButton = new InlineKeyboardButton();
+        // InlineKeyboardButton cancelButton = new InlineKeyboardButton();
         userStates.put(chatId, "AWAITING_TOPIC");
         sendMessage(chatId, "Введите название темы:");
 
         // Кнопка отмены
 
-        cancelButton.setText("Отмена ");
-        cancelButton.setCallbackData("cancel_add");
-        markup.setKeyboard(List.of(List.of(cancelButton)));
+    /*cancelButton.setText("Отмена ");
+    cancelButton.setCallbackData("cancel_add");
+    markup.setKeyboard(List.of(List.of(cancelButton)));
 
-        SendMessage message = new SendMessage();
-        message.setChatId(chatId);
-        message.setText("Введите название темы");
-        message.setReplyMarkup(markup);
+    SendMessage message = new SendMessage();
+    message.setChatId(chatId);
+    message.setText("Введите название темы");
+    message.setReplyMarkup(markup);*/
     }
 
     // Кнопка "Практика"
     private void sendMessagePractice(long chatId) {
     }
+
 
 }
 
